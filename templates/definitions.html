@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}KPI Definitions · E-Commerce BI Dashboard{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>KPI Definitions</h1>
+  <p class="muted">Every figure on the dashboard is calculated with exactly these formulas. All amounts are in {{ currency }}.</p>
+  <div class="table-wrap">
+    <table class="defs">
+      <thead><tr><th>KPI</th><th>Formula</th><th>Inclusions / exclusions</th></tr></thead>
+      <tbody>
+      {% for k in kpis %}
+        <tr><td><strong>{{ k.name }}</strong></td><td><code>{{ k.formula }}</code></td><td>{{ k.notes }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="card">
+  <h2>Consistent treatment rules</h2>
+  <ul class="rules">{% for r in rules %}<li>{{ r }}</li>{% endfor %}</ul>
+</section>
+{% endblock %}
