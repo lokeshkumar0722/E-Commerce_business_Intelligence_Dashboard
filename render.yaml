@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ecommerce-bi-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app:create_app()" --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DB_ENGINE
+        value: sqlite
+      - key: AUTO_SEED
+        value: "true"
+      - key: SECRET_KEY
+        generateValue: true

@@ -51,6 +51,16 @@ python app.py
 
 Open **http://127.0.0.1:5000**. On first start the app creates the tables and loads ~7,000 fictional orders (Nov 2024 – Oct 2026) automatically.
 
+## Deploy on Render
+
+1. Push this repo to GitHub.
+2. In Render: **New → Blueprint** (or **New → Web Service**) and select the repository.
+3. Blueprint reads [`render.yaml`](render.yaml) automatically. For a manual Web Service use:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `gunicorn "app:create_app()" --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT`
+   - Env vars: `PYTHON_VERSION=3.12.3`, `DB_ENGINE=sqlite`, `AUTO_SEED=true`
+4. Open the `onrender.com` URL once the deploy finishes.
+
 ## Using MySQL
 
 1. Install MySQL 8.0.16 or newer and make sure it is running.
@@ -157,6 +167,4 @@ git remote add origin https://github.com/lokeshkumar0722/E-Commerce_business_Int
 git push -u origin main
 ```
 
-## License
-
-MIT – see [LICENSE](LICENSE). The sample data is entirely fictional.
+The sample data is entirely fictional.

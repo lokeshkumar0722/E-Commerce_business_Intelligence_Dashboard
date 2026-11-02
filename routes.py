@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import csv
 import io
+import threading
+import time
 from datetime import date
 
 from flask import Blueprint, Response, current_app, jsonify, render_template, request
@@ -58,8 +60,38 @@ def parse_filters() -> dict:
     return dict(start=start, end=end, region=region, category=category)
 
 
+# Small in-memory cache: the dashboard fires ~11 requests per view that all need the
+# same data, so compute it once (important on low-CPU hosts such as Render's free plan).
+_CACHE: dict = {}
+_CACHE_LOCK = threading.Lock()
+_BUILD_LOCK = threading.RLock()   # re-entrant: a chart build also builds its data
+CACHE_TTL = 300
+
+
+def _cached(key, builder):
+    def lookup():
+        with _CACHE_LOCK:
+            hit = _CACHE.get(key)
+        return hit[1] if hit and time.time() - hit[0] < CACHE_TTL else None
+
+    value = lookup()
+    if value is not None:
+        return value
+    with _BUILD_LOCK:                      # one expensive build at a time
+        value = lookup()
+        if value is None:
+            value = builder()
+            with _CACHE_LOCK:
+                if len(_CACHE) > 80:
+                    _CACHE.clear()
+                _CACHE[key] = (time.time(), value)
+    return value
+
+
 def _data() -> analytics.DashboardData:
-    return analytics.DashboardData(_db(), **parse_filters())
+    f = parse_filters()
+    key = ("data", id(_db()), f["start"], f["end"], f["region"], f["category"])
+    return _cached(key, lambda: analytics.DashboardData(_db(), **f))
 
 
 # ------------------------------------------------------------------ pages
@@ -138,5 +170,7 @@ def report_csv():
 def chart(name: str):
     if name not in CHARTS:
         raise ApiError(404, f"Unknown chart '{name}'. Available: {', '.join(CHARTS)}.")
-    png = render_png(name, _data(), current_app.config["CURRENCY_SYMBOL"])
+    f = parse_filters()
+    key = ("chart", name, id(_db()), f["start"], f["end"], f["region"], f["category"])
+    png = _cached(key, lambda: render_png(name, _data(), current_app.config["CURRENCY_SYMBOL"]))
     return Response(png, mimetype="image/png", headers={"Cache-Control": "no-cache"})

@@ -75,16 +75,23 @@
 
   function showError(msg) { const a = $("alert"); a.textContent = msg; a.hidden = !msg; }
 
+  // Load chart images one after another so a low-CPU server is not hit by 7 renders at once.
+  async function loadCharts(qs, id) {
+    window.CHARTS.forEach((n) => $("c-" + n).classList.add("loading"));
+    for (const name of window.CHARTS) {
+      if (id !== requestId) return;
+      const img = $("c-" + name);
+      await new Promise((resolve) => {
+        img.onload = img.onerror = () => { img.classList.remove("loading"); resolve(); };
+        img.src = `/charts/${name}.png?${qs}`;
+      });
+    }
+  }
+
   async function refresh() {
     const id = ++requestId, qs = query();
     showError("");
     $("download").href = "/api/report.csv?" + qs;
-    window.CHARTS.forEach((name) => {
-      const img = $("c-" + name);
-      img.classList.add("loading");
-      img.onload = img.onerror = () => img.classList.remove("loading");
-      img.src = `/charts/${name}.png?${qs}`;
-    });
     try {
       const [k, cat, reg, prod] = await Promise.all([
         getJSON("/api/kpis?" + qs), getJSON("/api/revenue/category?" + qs),
@@ -93,6 +100,7 @@
       if (id !== requestId) return;   // a newer request superseded this one
       renderKpis(k); renderTables(cat, reg, prod);
     } catch (e) { if (id === requestId) showError(e.message); }
+    loadCharts(qs, id);
   }
 
   const debounced = () => { clearTimeout(timer); timer = setTimeout(refresh, 250); };
